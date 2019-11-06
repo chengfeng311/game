@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=2.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <style>
+    html,body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .wrapper {
+      position: relative;
+      margin: auto;
+    }
+    #bg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: -1;
+    }
+    .wrapper-inner {
+      position: absolute;
+      left: 2.94%;
+      top: 2.94%;
+      width: 94.12%;
+      height: 94.12%;
+      font-size: 0;
+    }
+    .wrapper-inner > div {
+      display: inline-block;
+      /* 6.25 */
+      width: 5.45%;
+      height: 5.45%;
+      margin: 0.4%;
+      box-sizing: border-box;
+    }
+    .wrapper-inner div {
+      position: relative;
+      /* border: 6px solid transparent; */
+      border-radius: 50%;
+    }
+    .wrapper-inner .selected::after {
+      content: ' ';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(to left, #f00, #f00) left top no-repeat, 
+                linear-gradient(to bottom, #f00, #f00) left top no-repeat, 
+                linear-gradient(to left, #f00, #f00) right top no-repeat,
+                linear-gradient(to bottom, #f00, #f00) right top no-repeat, 
+                linear-gradient(to left, #f00, #f00) left bottom no-repeat,
+                linear-gradient(to bottom, #f00, #f00) left bottom no-repeat,
+                linear-gradient(to left, #f00, #f00) right bottom no-repeat,
+                linear-gradient(to left, #f00, #f00) right bottom no-repeat;
+      background-size: 1px 25%, 25% 1px, 1px 25%, 25% 1px; 
+    }
+    .piece.white {
+      /* background-image: radial-gradient(#fff, #ccc); */
+      background-image: radial-gradient(circle, #fff 0%,#ffd9e6 40%);
+    }
+    .piece.black {
+      background-image: radial-gradient(circle, #ccc 0%,#000 40%);
+    }
+    .restart {
+      width: 90px;
+      line-height: 30px;
+      color: #fff;
+      background: skyblue;
+      text-align: center;
+      border-radius: 3px;
+      margin: 20px auto;
+    }
+  </style>
+  <link rel="stylesheet" href="../css/cfDialog0.0.1.css">
+  <title>五子棋</title>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="wrapper-inner"></div>
+  </div>
+  <div class="restart">重新开始</div>
+  <script src="../util/cfDialog0.0.1.js"></script>
+  <script>
+    // TODO: 记下上个棋子，给上个棋子加selected选中状态
+    // TODO: 弹框，确定，则初始化棋盘，取消隐藏弹框
+    const clientWidth = window.innerWidth
+    let wrapperDom = document.querySelector('.wrapper')
+    let innerDom = document.querySelector('.wrapper-inner')
+    wrapperDom.style.height = `${clientWidth}px`
+
+    let curPiece = 1, // 白子：1， 黑子：2
+        lastPiece = '', // 记下上一个棋子dom
+        canPlacePiece = true,
+        virtualArray = [];  // // 虚拟棋盘，用于判断胜负
+    
+    let canvas = document.createElement('canvas')
+    canvas.width = clientWidth
+    canvas.height = clientWidth
+    canvas.id = 'bg'
+    wrapperDom.appendChild(canvas)
+    let ctx = canvas.getContext('2d')
+    
+    // 画出棋盘(15x15) 因为两边要留空，所以是17
+    const sideLength = clientWidth / 17
+    for (let i = 1; i < 17; i++) {
+      ctx.moveTo(sideLength, sideLength * i)
+      ctx.lineTo(sideLength * 16, sideLength * i)
+      ctx.stroke()
+
+      ctx.moveTo(sideLength * i, sideLength)
+      ctx.lineTo(sideLength * i, sideLength * 16)
+      ctx.stroke()
+    }
+
+    // 初始化棋盘
+    function initChess() {
+      curPiece = 1
+      canPlacePiece = true
+      lastPiece = ''
+      // 初始化虚拟棋盘
+      for (let i = 0; i < 16; i++) {
+        if (!virtualArray[i]) {
+          virtualArray[i] = []
+        }
+        for (let j = 0; j < 16; j++) {
+          virtualArray[i][j] = 0
+        }
+      }
+
+      // 初始化棋盘
+      let innerHtmlStr = ''
+      for (let i = 0; i < 256; i++) {
+        innerHtmlStr += `<div class="piece" data-col="${i % 16}" data-row="${Math.floor(i / 16)}"></div>`
+      }
+      innerDom.innerHTML = innerHtmlStr
+    }
+    initChess()
+
+
+    // 判断是否胜利（四个方向上是否有连续五个子）
+    function judgeWin(curPiece, col, row) {
+      let arr = [
+        {add: [0, 1], reduce: [0, -1]}, // 竖向
+        {add: [1, 1], reduce: [-1, -1]},// 2点方向
+        {add: [1, 0], reduce: [-1, 0]}, // 横向
+        {add: [1, -1], reduce: [-1, 1]} // 5点方向
+      ]
+      let len = arr.length
+      while(len--) {
+        // console.log(count(curPiece, col, row, arr[len].add) + '+' + count(curPiece, col, row, arr[len].reduce))
+        if (count(curPiece, col, row, arr[len].add) + count(curPiece, col, row, arr[len].reduce) >= 4) {
+          return true
+        }
+      }
+      return false
+    }
+
+    // 递归判断有多少值
+    function count(curPiece, col, row, increment) {
+      let addCol = col + increment[0],
+          addRow = row + increment[1];
+      // 边缘直接返回0
+      if (virtualArray[addCol] === undefined || virtualArray[addCol][addRow] === undefined) {
+        return 0
+      }
+      if (virtualArray[addCol][addRow] === curPiece) {
+        return count(curPiece, addCol, addRow, increment) + 1
+      } else {
+        return 0
+      }
+    }
+
+    // 落子
+    function placePiece(target) {
+      // 回顾棋盘时禁止下子
+      if (!canPlacePiece) {
+        return
+      }
+      let col = +target.getAttribute('data-col')
+      let row = +target.getAttribute('data-row')
+      // 有子不能落子
+      if (virtualArray[col][row] > 0) {
+        return
+      }
+
+      let color = curPiece === 1 ? 'white' : 'black'
+      if (lastPiece) {
+        lastPiece.className = lastPiece.className.replace('selected', '')
+      }
+      target.className = `piece selected ${color}`
+      lastPiece = target
+      virtualArray[col][row] = curPiece
+      if (judgeWin(curPiece, col, row)) {
+        canPlacePiece = false
+        cfDialog.show({
+          showCancelButton: true,
+          cancelText: '取消',
+          confirmText: '再来一把',
+          confirmEvent: () => {
+            initChess()
+          },
+          title: 'success',
+          content: `${curPiece === 1 ? '粉子' : '黑子'}获胜`,
+          contentStyle: ''
+        })
+        return
+      }
+      curPiece = curPiece === 1 ? 2 : 1;
+    }
+    // 事件代理在父级dom上
+    innerDom.addEventListener('click', function(e) {
+      let target = e.target
+      while(target !== innerDom) {
+        if (target.className.indexOf('piece') > -1) {
+          placePiece(target)
+          break
+        }
+        target = target.parentNode
+      }
+    })
+    
+    // 重新开始按钮事件
+    document.querySelector('.restart').addEventListener('click', (e) => {
+      initChess()
+    })
+
+
+  </script>
+</body>
+</html>

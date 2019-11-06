@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      background: pink;
+    }
+    .container-outer {
+      position: absolute;
+      left: 10%;
+      top: 120px;
+      width: 80%;
+      padding-top: 80%;
+      border: 6px solid #3F3F3F;
+      font-size: 0;
+    }
+    .container {
+      position: absolute;
+      top: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .container > div {
+      position: absolute;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 25%;
+      height: 25%;
+      background: orange;
+      color: #fff;
+      text-align: center;
+      font-size: 30px;
+      border: 1px solid #fff;
+      box-sizing: border-box;
+    }
+  </style>
+  <script>
+    // 阻止微信下拉显示网址
+      window.onload = function () {
+        document.body.addEventListener('touchmove', function (e) {
+          e.preventDefault()
+          //阻止默认的处理方式(阻止下拉滑动的效果)
+        }, { passive: false })
+      }
+  </script>
+  <title>数字还原</title>
+</head>
+<body>
+  <div class="container-outer">
+    <div class="container"></div>
+  </div>
+  <script>
+    let container = document.querySelector('.container'),   // 容器
+        $body = document.querySelector('body'),
+        itemWidth = container.clientWidth / 4,              // 每格宽度
+        allItem = '',                                       // 所有小格子
+        startPos = null,                                    // 起始点坐标
+        allItemPos = [],                                    // 所有小格子的位置信息
+        curItemIndex = null,                                // 当前拖拽小格子的位置信息
+        victorArr = [];                                     // 胜利情况下位置数组
+
+    let containerInner = '';
+    for (let i = 0; i < 15; i++) {
+      let curLeft = itemWidth * (i % 4),
+      curTop = itemWidth * Math.floor(i / 4);
+      containerInner += `<div class="slider-box" style="left:${curLeft}px;top:${curTop}px" data-index="${i}">${i + 1}</div>`
+      victorArr.push({
+        left: curLeft,
+        top: curTop,
+        index: i
+      })
+      // 将所有格子对象化，以便计算
+      allItemPos = victorArr
+    }
+    container.innerHTML = containerInner;
+    
+    $body.addEventListener('touchstart', (e) => {
+      let target = e.target
+      while(target !== container) {
+        if(target.className.indexOf('slider-box') > -1) {
+          break;
+        }
+        target = target.parentNode;
+      }
+      startPos = {
+        x: e.touches[0].pageX,
+        y: e.touches[0].pageY
+      }
+      curItemIndex = +target.getAttribute('data-index')
+      console.log(curItemIndex)
+    })
+
+    $body.addEventListener('touchmove', e => {
+      console.log('touchmove', curItemIndex)
+      if (curItemIndex === null) {
+        return
+      }
+
+      let movePos = {
+        x: e.touches[0].pageX,
+        y: e.touches[0].pageY
+      }
+
+      let direction = getDirection(startPos, movePos)
+      // 移动距离太短没有方向
+      console.log('direction', direction, allItemPos[curItemIndex].top)
+      if (direction) {
+        // 判断x, y 移动方向上是否有方块
+        // let crashDomArr = getAllCrashDom(allItemPos[curItemIndex], direction)
+        crashDomArr = [allItemPos[curItemIndex]]
+        
+        if (crashDomArr.length > 0) {
+          moveDom(crashDomArr, direction, startPos, movePos)
+        }
+      }
+      startPos = movePos
+    })
+
+    $body.addEventListener('touchend', () => {
+      curItemIndex = null
+      startPos = null
+    })
+
+    // 获取所有碰撞的dom
+    function getAllCrashDom(targetItemPos, direction) {
+      let crashDomArr = [targetItemPos],
+          curPos = targetItemPos
+      while(curPos) {
+        curPos = getCrashDom(curPos, direction)
+        if (curPos) {
+          crashDomArr.push(curPos)
+        }
+      }
+      if (crashBorder(crashDomArr[crashDomArr.length - 1], direction)) {
+        return []
+      }
+      return crashDomArr
+    }
+    
+    // 获取碰撞的dom
+    function getCrashDom(targetItem, direction) {
+      for (let i = 0; i < allItemPos.length; i++) {
+        let curPos = allItemPos[i]
+        if (curPos.index === targetItem.index) {
+          continue
+        }
+
+        if (direction === 'left' && curPos.left + itemWidth >= targetItem.left) {
+          return curPos
+        } else if (direction === 'right' && curPos.left <= targetItem.left + itemWidth) {
+          return curPos
+        } else if (direction === 'up' && curPos.top + itemWidth >= targetItem.top) {
+          return curPos
+        } else if (direction === 'down' && curPos.top <= targetItem.top + itemWidth) {
+          return curPos
+        }
+      }
+      return false
+    }
+
+    function crashBorder(targetItem, direction) {
+      if (direction === 'left' && targetItem.left <= 0) {
+        return targetItem
+      } else if (direction === 'right' && targetItem.left >= itemWidth * 3) {
+        return targetItem
+      } else if (direction === 'up' && targetItem.top <= 0) {
+        return targetItem
+      } else if (direction === 'down' && targetItem.top >= itemWidth * 3) {
+        return targetItem
+      }
+      return false
+    }
+
+    function getAngle(angx, angy) {
+        return Math.atan2(angy, angx) * 180 / Math.PI;
+    };
+
+    //根据起点终点返回方向 1向上 2向下 3向左 4向右 0未滑动
+    function getDirection(startPos, endPos) {
+      var angx = endPos.x - startPos.x;
+      var angy = endPos.y - startPos.y;
+      var result = false;
+
+      //如果滑动距离太短
+      if (Math.abs(angx) < 2 && Math.abs(angy) < 2) {
+          return result;
+      }
+
+      var angle = getAngle(angx, angy);
+      if (angle >= -135 && angle <= -45) {
+          result = 'up';
+      } else if (angle > 45 && angle < 135) {
+          result = 'down';
+      } else if ((angle >= 135 && angle <= 180) || (angle >= -180 && angle < -135)) {
+          result = 'left';
+      } else if (angle >= -45 && angle <= 45) {
+          result = 'right';
+      }
+
+      return result;
+    }
+
+    function moveDom(domArr, direction, startPos, endPos) {
+      let xDistance = endPos.x - startPos.x,
+          yDistance = endPos.y - startPos.y;
+          console.log(domArr, direction)
+      domArr.forEach(item => {
+        let curX = item.left,
+            curY = item.top;
+        if (direction === 'left' || direction === 'right') {
+          item.left = curX + xDistance
+        } else {
+          item.top = curY + yDistance
+        }
+      })
+
+    }
+
+    // 根据屏幕渲染频率重绘
+    window.requestAnimationFrame(render)
+
+    function render() {
+      let curHtml = ''
+      allItemPos.forEach(item => {
+        curHtml += `<div class="slider-box" style="left:${item.left}px;top:${item.top}px" data-index="${item.index + 1}">${item.index + 1}</div>`
+      })
+      container.innerHTML = curHtml;
+      window.requestAnimationFrame(render)
+    }
+
+    // 首字母大写
+    // function firstUpperCase(str) {
+    //   return str.toLowerCase().replace(/( |^)[a-z]/g, (L) => L.toUpperCase());
+    // }
+  </script>
+</body>
+</html>

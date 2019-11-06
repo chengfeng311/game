@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,minimum-scale=1.0,user-scalable=no">
+		<meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<meta name="apple-mobile-web-app-capable" content="yes">
+		<meta name="apple-mobile-web-app-status-bar-style" content="black">
+		<title>2048</title>
+		<link rel="stylesheet" type="text/css" href="2048.css"/>
+		<style type="text/css">
+			.beian {
+				position:absolute;
+				bottom: 10px;
+				font-size:15px;
+				color:#000;
+				width:100%;
+				text-align: center;
+				
+			}
+			.beian a {
+				color:#000;
+			}
+		</style>
+		<script>
+			if (window.innerWidth > 640) {
+				document.querySelector('html').style.fontSize = '40px';
+			} else {
+				document.querySelector('html').style.fontSize = '32px';
+			}
+			// 阻止微信下拉显示网址
+			window.onload =function () {
+				document.body.addEventListener('touchmove',function (e) {
+				  e.preventDefault()
+				  //阻止默认的处理方式(阻止下拉滑动的效果)
+				}, {passive:false})
+			 }
+		</script>
+	</head>
+	<body>
+		<div class="box">
+			<div class="container">
+				
+			</div>
+			<div class="moveCubes">
+				
+			</div>
+			<div class="cover">
+				<div class="gameover">Game Over</div>
+				<button class="replay">重新开始</button>
+			</div>
+		</div>
+		<p class="beian">&copy;Copyright2018 cf All Rights Reserved  <a href="">赣ICP备17002341号-1</a> </p>
+
+		
+		<script src="http://libs.baidu.com/jquery/2.0.0/jquery.min.js"></script>
+		<script src="2048.js" type="text/javascript" charset="utf-8"></script>
+	</body>
+</html>

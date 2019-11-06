@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <style>
+    html, body {
+      height: 100%;
+      color: #fff;
+      background: pink;
+    }
+    .container {
+      width: 100%;
+    }
+    .main {
+      position: relative;
+      width: 80%;
+      padding-bottom: 80%;
+      margin: 0 auto;
+    }
+    .game-box {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 2px solid #4D4D4D;
+      border-radius: 5px;
+      font-size: 0;
+    }
+    .game-box div {
+      display: inline-block;
+      border: 2px solid #4D4D4D;
+      box-sizing: border-box;
+    }
+    .game-box .origin-color {
+      background: orange;
+    }
+    .game-box .new-color {
+      background: #409EFF;
+    }
+    .container .buttons {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 40px;
+    }
+    .container .buttons .button {
+      padding: 10px 15px;
+      line-height: 16px;
+      background: orange;
+      color: white;
+      text-align: center;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 5px;
+    }
+    .container .records {
+      display: flex;
+      justify-content: space-around;
+      margin: 30px;
+      font-weight: bold;
+    }
+    .container .records span {
+      font-weight: normal;
+    }
+  </style>
+  <link rel="stylesheet" href="./cfDialog0.0.1.css?version=1">
+  <title>变色方块</title>
+</head>
+<body>
+  <div class="container">
+    <div class="records">
+      <div class="level">当前关卡：<span></span></div>
+      <div class="best-level">最好关卡：<span></span></div>
+      <div class="click-time">点击次数：<span></span></div>
+    </div>
+    <div class="main">
+      <div class="game-box"></div>
+    </div>
+    <div class="buttons">
+      <div class="button" onclick="sameColor.rePlay()">重玩本关</div>
+      <div class="button" onclick="sameColor.rePlay(1)">重玩游戏</div>
+      <div class="button" onclick="introduce()">游戏介绍</div>
+    </div>
+  </div>
+  <script src="./cfDialog0.0.1.js?version=1"></script>
+  <script>
+    // 阻止微信下拉显示网址
+    window.onload =function () {
+      document.body.addEventListener('touchmove',function (e) {
+        e.preventDefault()
+        //阻止默认的处理方式(阻止下拉滑动的效果)
+      }, {passive:false})
+    }
+       
+  let sameColor = {
+    level: 1,       // 关卡
+    bestLevel: 1,   // 最好成绩
+    sum: 0,         // 小方块总数
+    clickTime: 0,   // 点击次数
+    container: '',
+    init: function(dom, option) {
+      this.container = dom
+      // 更新记录事件
+      this.onRecordRefresh = option.onRecordRefresh || function() {}
+      // 取出原纪录
+      if (localStorage.sameColorRecord) {
+        let sameColorRecord = JSON.parse(localStorage.sameColorRecord)
+        this.level = sameColorRecord.level
+        this.bestLevel = sameColorRecord.bestLevel
+      }
+      this.onRecordRefresh({
+        level: this.level,
+        bestLevel: this.bestLevel,
+        clickTime: this.clickTime
+      })
+      this.initEvent()
+      this.createDom()
+    },
+    createDom: function() {
+      let domStr = '',
+          sum = this.level * this.level,
+          i = 0,
+          percent = 100 / this.level;
+      this.sum = sum;
+      while(++i <= sum) {
+        let col = i % this.level ? (i % this.level) : this.level;
+        let row = Math.ceil(i / this.level);
+        domStr += `<div class="single origin-color" style="width:${percent}%;height:${percent}%;" data-col="${col}" data-row="${row}"></div>`
+      }
+      this.container.innerHTML = domStr
+    },
+    levelUp: function() {
+      if (!this.judgePass()) {
+        console('提示未通关，不能到下一关')
+        return
+      }
+      this.level++;
+      this.clickTime = 0;
+      if (this.level > this.bestLevel) {
+        this.bestLevel = this.level
+      }
+      this.onRecordRefresh({
+        level: this.level,
+        bestLevel: this.bestLevel,
+        clickTime: this.clickTime
+      })
+      this.saveRecord()
+      this.createDom()
+    },
+    // 重玩
+    rePlay(level) {
+      // 默认重玩当前关
+      this.level = level ? level : this.level;
+      this.clickTime = 0;
+      if (this.level > this.bestLevel) {
+        this.bestLevel = this.level
+      }
+      this.onRecordRefresh({
+        level: this.level,
+        bestLevel: this.bestLevel,
+        clickTime: this.clickTime
+      })
+      this.saveRecord()
+      this.createDom()
+    },
+    // 初始化事件
+    initEvent() {
+      let _this = this
+      this.eventDelegate(this.container, function() {
+        _this.clickTime++;
+        _this.saveRecord()
+        // 小方格点击改变邻近方块颜色
+        _this.changeBoxColor(this)
+        if (_this.judgePass()) {
+          cfDialog.show({
+            confirmText: '下一关',
+            confirmEvent: () => {
+              _this.levelUp()
+            },
+            content: '大宝贝好棒/（￣︶￣）/，过关啦！',
+          })
+        }
+      })
+    },
+    // 事件委托函数
+    eventDelegate: function (parentDom, callback) {
+      parentDom.addEventListener('click', function(e) {
+        let target = e.target
+        while(target !== parentDom) {
+          if(target.className.indexOf('single') > -1) {
+            callback.call(target)
+            break;
+          }
+          target = target.parentNode;
+        }
+      })
+    },
+    changeBoxColor: function(singleDom) {
+      let col = +singleDom.getAttribute('data-col'),
+        row = +singleDom.getAttribute('data-row'),
+        adjacentCoord = [(String(col) + row)],
+        _this = this;
+        // 找出相邻的方块，放入adjacentCoord
+        (col - 1) !== 0 && adjacentCoord.push(String(col - 1) + row);
+        (col + 1) <= this.level && adjacentCoord.push(String(col + 1) + row);
+        (row - 1) !== 0 && adjacentCoord.push(String(col) + (row - 1));
+        (row + 1) <= this.level && adjacentCoord.push(String(col) + (row + 1));
+        this.container.querySelectorAll('.single').forEach(function(dom) {
+          let sign = dom.getAttribute('data-col') + dom.getAttribute('data-row')
+          if (adjacentCoord.indexOf(sign) > -1) {
+            dom.className = dom.className.indexOf('origin-color') > -1 ? 'single new-color' : 'single origin-color'
+          }
+        })
+    },
+    // 判断是否通关
+    judgePass: function() {
+      if (this.container.querySelectorAll('.new-color').length === this.sum) {
+        return true
+      }
+      return false
+    },
+    // 保存记录
+    saveRecord: function() {
+      let sameColorRecord = {
+        level: this.level,
+        bestLevel: this.bestLevel
+      }
+      this.onRecordRefresh(Object.assign(sameColorRecord, {
+        clickTime: this.clickTime
+      }))
+      localStorage.sameColorRecord = JSON.stringify(sameColorRecord)
+    }
+  }
+
+  let levelDom = document.querySelector('.level span'),
+      bestLevelDom = document.querySelector('.best-level span'),
+      clickTimeDom = document.querySelector('.click-time span');
+  sameColor.init(document.querySelector('.game-box'), {
+    onRecordRefresh: function(values) {
+      levelDom.innerHTML = values.level
+      bestLevelDom.innerHTML = values.bestLevel
+      clickTimeDom.innerHTML = values.clickTime
+    }
+  })
+
+  function introduce() {
+    let content = `<ol>
+      <li>游戏玩法：点击色块，会改变其自身和上下左右相邻色块的颜色。</li>
+      <li>游戏规则：当全部色块变为蓝色，即为胜利。</li>
+    </ol>`
+    cfDialog.show({
+      content: content,
+      contentStyle: {
+        textAlign: 'left' 
+      }
+    })
+  }
+
+  </script>
+</body>
+</html>
