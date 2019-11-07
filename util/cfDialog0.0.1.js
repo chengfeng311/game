@@ -77,8 +77,8 @@ let cfDialog = {
     let executeWithClosure = function(fn) {
       let index = _this.index;
       return function() {
-        fn && fn();
         _this.hide(index)
+        fn && fn();
       }
     }
     dialogDom.querySelector('.cancel').addEventListener('click', executeWithClosure(this.option.cancelEvent))

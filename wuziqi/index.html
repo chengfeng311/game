@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=2.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <style>
     html,body {
@@ -11,8 +11,19 @@
       height: 100%;
     }
     .wrapper {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+    }
+    .outer {
+      width: 100%;
+      padding-bottom: 100%;
       position: relative;
-      margin: auto;
+      overflow: hidden;
+      border: 2px solid #ccc;
+      box-sizing: border-box;
     }
     #bg {
       position: absolute;
@@ -65,7 +76,7 @@
     .piece.black {
       background-image: radial-gradient(circle, #ccc 0%,#000 40%);
     }
-    .restart {
+    .button {
       width: 90px;
       line-height: 30px;
       color: #fff;
@@ -79,21 +90,26 @@
   <title>五子棋</title>
 </head>
 <body>
-  <div class="wrapper">
-    <div class="wrapper-inner"></div>
+  <div class="outer">
+    <div class="wrapper">
+      <div class="wrapper-inner"></div>
+    </div>
   </div>
-  <div class="restart">重新开始</div>
+  <div class="restart button">重新开始</div>
+  <div class="regret button">悔棋</div>
   <script src="../util/cfDialog0.0.1.js"></script>
+  <script src="../util/alloyFinger.js"></script>
   <script>
     // TODO: 记下上个棋子，给上个棋子加selected选中状态
-    // TODO: 弹框，确定，则初始化棋盘，取消隐藏弹框
     const clientWidth = window.innerWidth
-    let wrapperDom = document.querySelector('.wrapper')
-    let innerDom = document.querySelector('.wrapper-inner')
+    const MAX_REGRET_NUM = 5
+    const outerDom = document.querySelector('.outer')
+    const wrapperDom = document.querySelector('.wrapper')
+    const innerDom = document.querySelector('.wrapper-inner')
     wrapperDom.style.height = `${clientWidth}px`
 
     let curPiece = 1, // 白子：1， 黑子：2
-        lastPiece = '', // 记下上一个棋子dom
+        pastPieceArray = [], // 记下过去五步棋
         canPlacePiece = true,
         virtualArray = [];  // // 虚拟棋盘，用于判断胜负
     
@@ -120,7 +136,7 @@
     function initChess() {
       curPiece = 1
       canPlacePiece = true
-      lastPiece = ''
+      pastPieceArray = []
       // 初始化虚拟棋盘
       for (let i = 0; i < 16; i++) {
         if (!virtualArray[i]) {
@@ -174,6 +190,41 @@
       }
     }
 
+    // 设置过去棋子
+    function setPastPiece(target) {
+      if (pastPieceArray.length >= MAX_REGRET_NUM) {
+        pastPieceArray.shift()
+        pastPieceArray[pastPieceArray.length - 1].classList.toggle('selected')
+      } else if(pastPieceArray.length > 0) {
+        pastPieceArray[pastPieceArray.length - 1].classList.toggle('selected')
+      }
+      pastPieceArray.push(target)
+    }
+
+    // 悔棋
+    function regret() {
+      if (pastPieceArray.length <= 0) {
+        // 提示已到最大悔棋数，不能再悔棋了
+        cfDialog.show({
+          showCancelButton: false,
+          confirmText: '知道了',
+          title: 'warning',
+          content: `不能再悔了！！！`,
+          contentStyle: ''
+        })
+      } else {
+        let regretPiece = pastPieceArray.pop()
+        let col = +regretPiece.getAttribute('data-col')
+        let row = +regretPiece.getAttribute('data-row')
+        regretPiece.className = 'piece'
+        virtualArray[col][row] = 0
+        // 给上一个加上选中框
+        if (pastPieceArray.length > 0) {
+          pastPieceArray[pastPieceArray.length - 1].classList.add('selected')
+        }
+      }
+    }
+
     // 落子
     function placePiece(target) {
       // 回顾棋盘时禁止下子
@@ -188,11 +239,8 @@
       }
 
       let color = curPiece === 1 ? 'white' : 'black'
-      if (lastPiece) {
-        lastPiece.className = lastPiece.className.replace('selected', '')
-      }
+      setPastPiece(target)
       target.className = `piece selected ${color}`
-      lastPiece = target
       virtualArray[col][row] = curPiece
       if (judgeWin(curPiece, col, row)) {
         canPlacePiece = false
@@ -228,6 +276,44 @@
       initChess()
     })
 
+    // 悔棋
+    document.querySelector('.regret').addEventListener('click', e => {
+      cfDialog.show({
+        showCancelButton: true,
+        cancelText: '算了',
+        confirmText: '悔一下嘛',
+        confirmEvent: () => {
+          regret()
+        },
+        title: '提示',
+        content: `确定悔棋?`,
+        contentStyle: ''
+      })
+    })
+
+    // alloyFinger code, pinch and move
+    let initScale = 1
+    let initPos = [0, 0]
+    new AlloyFinger(outerDom, {
+        multipointStart: function () {
+
+        },
+        pinch: function (evt) {
+            let scale = initScale * evt.zoom;
+            if (scale < 1) {
+              scale = 1
+            } else if (scale > 2) {
+              scale = 2
+            }
+            wrapperDom.style.transform = `translate(${initPos[0]}px, ${initPos[1]}px) scale(${scale}, ${scale})`;
+            initScale = scale
+        },
+        pressMove:function(evt){
+            wrapperDom.style.transform = `translate(${initPos[0] + evt.deltaX}px, ${initPos[1] + evt.deltaY}px) scale(${initScale}, ${initScale})`
+            initPos = [initPos[0] + evt.deltaX, initPos[1] + evt.deltaY]
+            evt.preventDefault();
+        }
+    });
 
   </script>
 </body>
