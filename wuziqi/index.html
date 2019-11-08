@@ -33,10 +33,10 @@
     }
     .wrapper-inner {
       position: absolute;
-      left: 2.94%;
-      top: 2.94%;
-      width: 94.12%;
-      height: 94.12%;
+      left: 2.941%;
+      top: 2.941%;
+      width: 94.118%;
+      height: 94.118%;
       font-size: 0;
     }
     .wrapper-inner > div {
@@ -52,13 +52,22 @@
       /* border: 6px solid transparent; */
       border-radius: 50%;
     }
+    .wrapper-inner div::before {
+      content: ' ';
+      position: absolute;
+      top: -0.4%;
+      left: -0.4%;
+      right: -0.4%;
+      bottom: -0.4%;
+      z-index: 2;
+    }
     .wrapper-inner .selected::after {
       content: ' ';
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: -0.4%;
+      left: -0.4%;
+      right: -0.4%;
+      bottom: -0.4%;
       background: linear-gradient(to left, #f00, #f00) left top no-repeat, 
                 linear-gradient(to bottom, #f00, #f00) left top no-repeat, 
                 linear-gradient(to left, #f00, #f00) right top no-repeat,
@@ -217,6 +226,8 @@
         let col = +regretPiece.getAttribute('data-col')
         let row = +regretPiece.getAttribute('data-row')
         regretPiece.className = 'piece'
+        // 悔棋更改下棋方
+        curPiece = curPiece === 1 ? 2 : 1;
         virtualArray[col][row] = 0
         // 给上一个加上选中框
         if (pastPieceArray.length > 0) {
